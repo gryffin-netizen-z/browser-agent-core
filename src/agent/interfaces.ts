@@ -37,6 +37,8 @@ export interface PreviousAction {
 export interface RunAgentDto {
   url: string;
   goal: string;
+  headless?: boolean;
+  keepBrowserOpen?: boolean;
 }
 
 /**

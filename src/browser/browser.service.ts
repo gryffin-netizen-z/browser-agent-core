@@ -17,11 +17,17 @@ export class BrowserService implements OnModuleDestroy {
   private browser: Browser | null = null;
   private context: BrowserContext | null = null;
   private page: Page | null = null;
+  private headless: boolean = true;
 
-  async launch(): Promise<void> {
-    if (this.browser) return;
+  async launch(options?: { headless?: boolean }): Promise<void> {
+    const wantHeadless = options?.headless ?? true;
+    if (this.browser && this.headless === wantHeadless) return;
+    if (this.browser) {
+      await this.close();
+    }
+    this.headless = wantHeadless;
     this.browser = await chromium.launch({
-      headless: true,
+      headless: this.headless,
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
     this.context = await this.browser.newContext({
@@ -36,6 +42,15 @@ export class BrowserService implements OnModuleDestroy {
     await this.ensureLaunched();
     if (!this.page) throw new Error('Page not initialized');
     await this.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  }
+
+  /** Current page URL and title (context for LLM). */
+  async getPageState(): Promise<{ url: string; title: string }> {
+    await this.ensureLaunched();
+    if (!this.page) throw new Error('Page not initialized');
+    const url = this.page.url();
+    const title = await this.page.title();
+    return { url, title };
   }
 
   async extractInteractiveDom(): Promise<DomElement[]> {

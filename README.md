@@ -55,18 +55,34 @@ Production-ready NestJS service that uses **Playwright** and **Google Gemini** t
 
 ## API
 
+### `GET /agent/diagnose`
+
+Checks that the browser (Playwright) and Gemini are working. Similar to `uv run main.py diagnose` in [browser_agent](https://github.com/rkvalandas/browser_agent).
+
+```bash
+curl http://localhost:3000/agent/diagnose
+```
+
+Response example: `{ "browser": "ok", "gemini": "ok" }` or error messages for either.
+
 ### `POST /agent/run`
 
 Runs the browser agent for a given URL and goal.
+
+- **headless** (optional): Set to `false` to open a visible browser window so you can watch the agent click, scroll, and type. Default is `true` (no window).
+- **keepBrowserOpen** (optional): Set to `true` to leave the browser open after the run; set to `false` to force close. When `headless` is `false`, the browser **stays open by default** after the run (unless you set `keepBrowserOpen: false`).
 
 **Request body:**
 
 ```json
 {
   "url": "https://example.com",
-  "goal": "Buy the cheapest product on this page"
+  "goal": "Buy the cheapest product on this page",
+  "headless": false
 }
 ```
+
+Use `"headless": false` to open a visible Chromium window and watch the agent.
 
 **Response:**
 

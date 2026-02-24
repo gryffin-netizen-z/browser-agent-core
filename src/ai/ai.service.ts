@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
 import {
   DomElement,
   GeminiActionResponse,
@@ -22,25 +22,43 @@ Respond with exactly this JSON structure, nothing else:
 {"action":"click"|"type"|"scroll"|"done","target_id":"el_X","value":"optional text for type or 'up'/'down' for scroll"}
 
 Rules:
-- Use "done" when the goal is achieved or no further action makes sense; set target_id to "" and omit value.
-- Use "click" for buttons/links. target_id must be an element id from the list.
+- Use "done" ONLY when the user's goal is fully achieved (e.g. "compare products" = you have clicked Compare on at least 2 items or opened product details; "buy cheapest" = you have added that product to cart or reached its page). Do NOT return done after only scrolling or when you have not yet performed the main action (click/type) required by the goal.
+- Use "click" for buttons/links (Add to Cart, Compare, product links, etc.). target_id must be an element id from the list.
 - Use "type" for input fields. target_id is the input id, value is the text to type.
-- Use "scroll" to scroll the page. target_id can be "", value is "up" or "down".
+- Use "scroll" to scroll the page when you need to bring more elements into view (e.g. to find products, Compare buttons). target_id can be "", value is "up" or "down".
 - target_id must be one of the provided element ids (e.g. el_1, el_2) or "" for done/scroll.`;
+
+const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 
 @Injectable()
 export class AIService {
-  private genAI: GoogleGenerativeAI | null = null;
+  private client: OpenAI | null = null;
 
-  private getClient(): GoogleGenerativeAI {
-    if (!this.genAI) {
-      const apiKey = process.env.GEMINI_API_KEY?.trim();
+  private getClient(): OpenAI {
+    if (!this.client) {
+      const apiKey = process.env.OPENAI_API_KEY?.trim();
       if (!apiKey) {
-        throw new Error('GEMINI_API_KEY is required. Add it to your .env file.');
+        throw new Error('OPENAI_API_KEY is required. Add it to your .env file.');
       }
-      this.genAI = new GoogleGenerativeAI(apiKey);
+      this.client = new OpenAI({ apiKey });
     }
-    return this.genAI;
+    return this.client;
+  }
+
+  /**
+   * Gửi message lên OpenAI, trả về nội dung phản hồi (dùng cho hello, diagnose).
+   */
+  async sendMessage(message: string): Promise<string> {
+    const client = this.getClient();
+    const completion = await client.chat.completions.create({
+      model: OPENAI_MODEL,
+      messages: [{ role: 'user', content: message }],
+    });
+    const content = completion.choices[0]?.message?.content;
+    if (content == null) {
+      throw new Error('OpenAI returned empty response');
+    }
+    return content;
   }
 
   async getNextAction(
@@ -48,11 +66,12 @@ export class AIService {
     domSnapshot: DomElement[],
     previousActions: PreviousAction[],
     lastError?: string,
+    pageContext?: { url: string; title: string },
   ): Promise<GeminiActionResponse> {
-    const model = this.getClient().getGenerativeModel({
-      model: 'gemini-1.5-pro-latest',
-      systemInstruction: SYSTEM_INSTRUCTION,
-    });
+    const pageContextText =
+      pageContext != null
+        ? `Current page URL: ${pageContext.url}\nCurrent page title: ${pageContext.title}\n\n`
+        : '';
 
     const domDescription = domSnapshot.length
       ? domSnapshot
@@ -78,20 +97,30 @@ export class AIService {
       ? `\nLast execution error (try a different action): ${lastError}`
       : '';
 
-    const prompt = `Goal: ${goal}
+    const userContent = `Goal: ${goal}
 
-Current interactive elements on the page:
+${pageContextText}Current interactive elements on the page:
 ${domDescription}
 ${historyText}
 ${errorContext}
 
+Remember: Return "done" only when the goal is truly completed (e.g. compared products, clicked the right item). If the goal is to compare products or find the cheapest, you must click the relevant buttons/links (Compare, product name, Add to Cart) before saying done.
 Return ONLY a single JSON object with keys: action, target_id, value (omit value for click/done if not needed).`;
 
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const text = response.text();
-
-    return this.parseJsonResponse(text);
+    const client = this.getClient();
+    const completion = await client.chat.completions.create({
+      model: OPENAI_MODEL,
+      messages: [
+        { role: 'system', content: SYSTEM_INSTRUCTION },
+        { role: 'user', content: userContent },
+      ],
+      response_format: { type: 'json_object' },
+    });
+    const raw = completion.choices[0]?.message?.content;
+    if (raw == null) {
+      throw new Error('OpenAI returned empty response');
+    }
+    return this.parseJsonResponse(raw);
   }
 
   private parseJsonResponse(raw: string): GeminiActionResponse {
@@ -119,7 +148,7 @@ Return ONLY a single JSON object with keys: action, target_id, value (omit value
       };
     } catch (e) {
       throw new Error(
-        `Gemini response is not valid JSON: ${(e as Error).message}. Raw: ${raw.slice(0, 200)}`,
+        `OpenAI response is not valid JSON: ${(e as Error).message}. Raw: ${raw.slice(0, 200)}`,
       );
     }
   }

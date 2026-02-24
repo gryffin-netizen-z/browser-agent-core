@@ -1,309 +1,384 @@
-# Project Overview – AI-Powered Browser Agent
+## Tên sản phẩm & elevator pitch
+
+**Browser Agent Core** — API + browser agent điều khiển bằng AI: so sánh giá đa sàn, đặt hàng tạp hóa end-to-end, fill form + upload file. Mô tả mục tiêu bằng ngôn ngữ tự nhiên (hoặc danh sách cần làm), hệ thống tự thực hiện và trả **structured output** (JSON) — không cần viết script hay maintain selector khi site đổi.
+
+*Dùng cho slide mở đầu / one-liner khi giới thiệu.*
 
 ---
 
-## English
+## Tại sao lại có ý tưởng này
 
-### What the project does
-
-The project is **an API backend** that accepts a **page URL** and a **natural-language goal**. The system will:
-
-1. Open that page in a headless browser (Chromium via Playwright).
-2. Collect interactive elements (buttons, links, inputs, dropdowns).
-3. Send the goal and element list to **Google Gemini**.
-4. Gemini decides the **next action** (click, type, scroll, or "done").
-5. The system **executes** that action on the page.
-6. Repeat steps 2–5 until: Gemini returns "done", **max 10 steps** are reached, or an error stops the run.
-7. Return the result: success/failure, step count, and action log.
-
-**Example:**  
-- **Input:** `url: "https://example.com"`, `goal: "Buy the cheapest product on this page"`  
-- **Output:** JSON describing which steps were run (e.g. click product, fill form) and the final outcome.
-
-### Applications
-
-The system can be used whenever you need **automated web actions driven by a natural-language goal**:
-
-- **E-commerce & shopping:** Find/select the cheapest or best-fit product, add to cart, fill checkout forms.
-- **Data & research:** Navigate pages (tabs, filters, cookie consent) to prepare for scraping or export.
-- **Form & process automation:** Fill registration/contact/feedback forms, run multi-step flows on internal portals, smoke-test flows.
-- **QA & testing:** Run tests described in natural language, reproduce bugs from step descriptions, verify UI after deploy.
-- **Customer support & chatbots:** Fulfill requests like "Buy product A on page B" via API; remote guidance (with authorization); product demos.
-- **Light RPA:** Repeat actions across similar pages; integrate with workflows (orchestrator calls `POST /agent/run`, then uses the result).
-
-**Limitations:** Max 10 steps per run (split complex goals into multiple calls); SPA/captcha/2FA may require extensions; use must comply with site terms and law.
-
-### Practical use cases
-
-Real-world situations where teams can deploy the system:
-
-- **Retail & e-commerce:** Smoke-test "browse → add to cart → checkout" on staging; brand/agency fills signup forms on promo pages; internal price-comparison tools.
-- **Government & public services:** Support staff trigger agent to complete online registration (with proper authorization); recurring report forms submitted via scheduled agent runs.
-- **Research & data:** Accept cookies, set date filters, click "Download" so a separate scraper can extract data; market research pipelines standardize page state before extraction.
-- **Software development & QA:** Regression tests written as natural-language scenarios; live demos for clients/PMs; support reproduces bugs by turning user descriptions into goals.
-- **Customer support & virtual assistants:** Chatbot "buy for me" flows (parse intent → call agent → respond with cart link); remote assistance for less tech-savvy users (with consent).
-- **Internal automation (light RPA):** Daily "open orders page → open first pending → Approve"; batch data entry from CSV/Excel into web forms.
-
-**In short:** Practical use is **humans (or systems) describing "what to do on which page" in natural language**; the agent performs it and reports the result.
-
-### Technical details (summary)
-
-- **API:** `POST /agent/run` with body `{ "url": "...", "goal": "..." }`. Response: `success`, `message`, `steps_executed`, `previous_actions`, optional `final_dom_snapshot`.
-- **Flow:** Launch browser → open URL → loop (extract DOM → call Gemini → parse JSON → execute click/type/scroll or done) up to 10 steps → close browser → return result.
-- **Components:** AgentController, AgentService, BrowserService, AIService; types in `interfaces.ts`, DTO in `dto/run-agent.dto.ts`.
-- **DOM:** Only interactive elements (button, a, input, select) with stable selectors (id → data-testid → input[name] → data-agent-id).
-- **Gemini:** Model `gemini-1.5-pro-latest`, strict JSON response `{ action, target_id, value }`; invalid JSON retried once.
-- **Errors:** URL/DOM errors return failure and close browser; execution errors are fed back to Gemini for the next step.
-- **Stack:** NestJS, Playwright, @google/generative-ai, TypeScript, dotenv. Required env: `GEMINI_API_KEY`. Run: `npm install` → `npx playwright install chromium` → set `.env` → `npm run start`.
-
-### One-sentence summary
-
-**The project is an API service (NestJS) that uses Playwright to drive a browser and Gemini to decide the next step, automating a single goal on a given page (open → extract DOM → ask Gemini → execute click/type/scroll → repeat up to 10 steps → return result).**
+Mua sắm và thao tác trên web ngày càng nhiều nhưng người dùng phải tự mở từng sàn, gõ từ khóa, so sánh giá thủ công, lặp lại đặt hàng tạp hóa mỗi tuần, hoặc điền điền lại các form giống nhau (đăng ký, nộp đơn, feedback). Các công cụ so sánh giá có sẵn thường chỉ gắn với một vài đối tác, khó mở rộng; automation script thì dễ gãy khi UI thay đổi và cần người biết code. Ý tưởng dự án là dùng **AI điều khiển browser** theo mục tiêu bằng ngôn ngữ tự nhiên: một hệ thống vừa **crawl nhiều sàn** trả **structured output**, vừa **thực hiện flow đặt hàng end-to-end** hoặc **fill form + upload file** thay cho con người, dễ mở rộng sàn và trang web mới mà không phụ thuộc vào từng layout cố định.
 
 ---
 
-## Tiếng Việt
+## Nỗi khổ của những người cần các tính năng này
 
-### Dự án làm gì (What the project does)
+- **So sánh giá đa sàn:** Phải mở từng tab eBay, Amazon, Swappa (và các sàn khác), gõ lại cùng một từ khóa, lần lượt xem từng trang, copy giá và link vào Excel hoặc ghi chú — tốn thời gian, dễ sót, khó so sánh nhanh “sàn nào rẻ nhất” hoặc “cùng sản phẩm giá chênh bao nhiêu”. Công cụ so sánh giá thường chỉ hỗ trợ vài sàn và ít khi cho **structured data (JSON)** để tự tích hợp vào app hoặc workflow.
+- **Đặt hàng tạp hóa online:** Mỗi tuần phải vào app/site, tìm từng món trong danh sách, thêm vào giỏ, điền địa chỉ và thanh toán — công việc lặp đi lặp lại, nhàm chán. Người bận rộn, người cao tuổi hoặc người cần hỗ trợ (đặt hộ) muốn chỉ cần đưa “danh sách mua” và để hệ thống chạy **end-to-end**, nhưng hiện phần lớn vẫn phải thao tác tay.
+- **Điền form và upload file:** Đăng ký dịch vụ, nộp đơn, gửi feedback có đính kèm thường yêu cầu điền rất nhiều ô giống nhau trên nhiều trang; upload file lại phải bấm chọn từng file. Làm hàng chục đơn hoặc đăng ký hàng loạt thì rất mệt, dễ nhầm dữ liệu; doanh nghiệp muốn automation nhưng **RPA** truyền thống đắt và khó maintain khi **UI** web đổi.
 
-Dự án là **một API backend** cho phép bạn gửi một **địa chỉ trang web (URL)** và một **mục tiêu bằng ngôn ngữ tự nhiên (goal)**. Hệ thống sẽ:
+Dự án hướng tới giảm những nỗi khổ đó: **một lần mô tả mục tiêu (hoặc danh sách cần làm)**, hệ thống tự **crawl**, so sánh, đặt hàng hoặc **fill form + upload file** và trả **structured output**.
 
-1. Mở trang web đó bằng trình duyệt ảo (Chromium qua Playwright).
-2. Thu thập danh sách các phần tử tương tác được trên trang (nút bấm, link, ô nhập, dropdown).
-3. Gửi mục tiêu và danh sách phần tử đó cho **Google Gemini**.
-4. Gemini quyết định **hành động tiếp theo** (click, gõ chữ, cuộn trang, hoặc "xong").
-5. Hệ thống **thực thi** hành động đó trên trang (click nút, gõ vào ô, cuộn).
-6. Lặp lại bước 2 → 5 cho đến khi:  
-   - Gemini trả lời "done" (hoàn thành mục tiêu), hoặc  
-   - Đã chạy đủ **tối đa 10 bước**, hoặc  
-   - Có lỗi không thể tiếp tục.
-7. Trả về kết quả: thành công/thất bại, số bước đã chạy, nhật ký từng hành động.
+### Sơ đồ: Vấn đề → Giải pháp
 
-**Ví dụ:**  
-- **Input:** `url: "https://example.com"`, `goal: "Buy the cheapest product on this page"`  
-- **Output:** JSON cho biết đã thực hiện những bước nào (click vào sản phẩm, điền form, v.v.) và kết quả cuối cùng.
-
----
-
-## Ứng dụng của hệ thống (Applications)
-
-Hệ thống có thể dùng trong nhiều tình huống thực tế khi cần **tự động thao tác trên web theo mục tiêu bằng ngôn ngữ tự nhiên**:
-
-### Thương mại điện tử & mua sắm
-
-- **Tìm và chọn sản phẩm rẻ nhất / phù hợp nhất** trên một trang danh sách.
-- **Thêm vào giỏ, điền form checkout** (địa chỉ, số điện thoại) theo dữ liệu có sẵn.
-- **So sánh giá hoặc thông tin** giữa nhiều sản phẩm trên cùng trang.
-
-### Thu thập dữ liệu & nghiên cứu
-
-- **Điều hướng trang** (click tab, mở menu, cuộn) để đến đúng khu vực cần scrape.
-- **Chuẩn bị trạng thái trang** trước khi bước scrape khác trích xuất dữ liệu (vd: chọn bộ lọc, mở modal).
-- **Đăng nhập / chấp nhận cookie** theo mục tiêu mô tả bằng text.
-
-### Tự động hoá form & quy trình nội bộ
-
-- **Điền form đăng ký, liên hệ, feedback** theo nội dung cho trước.
-- **Thực hiện quy trình nhiều bước** trên portal nội bộ (vd: "Mở trang X, chọn option Y, nhấn Submit").
-- **Kiểm tra luồng** (flow) đơn giản trên web app (smoke test theo mô tả).
-
-### Kiểm thử & QA
-
-- **Test theo kịch bản mô tả bằng ngôn ngữ tự nhiên** (vd: "Đăng nhập rồi tạo đơn hàng mới").
-- **Tái tạo lỗi** bằng cách mô tả các bước người dùng thực hiện.
-- **Kiểm tra giao diện** sau deploy: gửi goal đơn giản để xác nhận trang load và nút/link cơ bản hoạt động.
-
-### Hỗ trợ người dùng & chatbot
-
-- **Chatbot/assistant** nhận yêu cầu kiểu "Mua giúp tôi sản phẩm A trên trang B" → gọi API với `url` + `goal` tương ứng.
-- **Hướng dẫn từ xa:** Mô tả mục tiêu, hệ thống thực hiện giúp (trong môi trường được phép).
-- **Demo sản phẩm:** Tự động thao tác trên trang để trình chiếu luồng sử dụng.
-
-### RPA nhẹ (Robotic Process Automation)
-
-- **Lặp lại thao tác** trên các trang có cấu trúc tương tự (vd: duyệt danh sách, click từng mục, điền thông tin).
-- **Kết nối với hệ thống khác:** Backend nhận request từ workflow/orchestrator, gọi `POST /agent/run` với URL và goal, sau đó xử lý kết quả (success, previous_actions) để quyết định bước tiếp theo.
-
-### Giới hạn cần lưu ý
-
-- **Max 10 bước** mỗi lần chạy → goal phức tạp có thể cần chia nhỏ hoặc gọi nhiều lần.
-- **Trang động (SPA), captcha, đăng nhập 2 bước** có thể cần mở rộng (screenshot, thêm action, tích hợp service khác).
-- **Mục đích sử dụng** cần tuân thủ điều khoản của website và quy định pháp luật (không spam, không bypass bảo mật trái phép).
-
----
-
-## Ứng dụng thực tiễn (Practical use cases)
-
-Phần này mô tả **các tình huống thực tế** mà doanh nghiệp hoặc đội phát triển có thể triển khai hệ thống, với vai trò người dùng và lợi ích cụ thể.
-
-### Bán lẻ & E-commerce
-
-- **Sàn thương mại điện tử:** Đội vận hành cần kiểm tra nhanh luồng "tìm sản phẩm → thêm giỏ → checkout" trên môi trường staging. Thay vì test tay từng bước, gọi API với URL trang danh sách + goal "Click sản phẩm đầu tiên, thêm vào giỏ, vào giỏ hàng" để smoke test sau mỗi đợt deploy.
-- **Brand/agency:** Khách hàng gửi link trang khuyến mãi, yêu cầu "Điền form đăng ký nhận tin với email X". Backend tích hợp agent: nhận webhook hoặc request từ form nội bộ → gọi `POST /agent/run` với URL + goal tương ứng → báo kết quả (thành công / thất bại) cho người dùng.
-- **So sánh giá nội bộ:** Công cụ nội bộ mở trang đối thủ, goal "Tìm và click vào sản phẩm có tên Y, ghi nhận giá hiển thị". Kết quả (kèm snapshot DOM hoặc bước tiếp theo) dùng cho báo cáo giá.
-
-### Hành chính & Dịch vụ công
-
-- **Đăng ký dịch vụ công trực tuyến:** Nhân viên hỗ trợ nhận yêu cầu "Đăng ký giúp tôi giấy phép X trên trang Y". Thay vì hướng dẫn từng bước qua điện thoại, hệ thống gọi agent với URL trang đăng ký + goal mô tả (điền form, chọn loại giấy phép, gửi). Cần tuân thủ quy định bảo mật và ủy quyền.
-- **Nộp form báo cáo định kỳ:** Các form báo cáo lặp lại (tháng/quý) trên portal: orchestrator lên lịch, mỗi kỳ gọi agent với URL form + goal "Điền các trường theo dữ liệu đính kèm và Submit". Giảm thao tác tay cho nhân viên.
-
-### Nghiên cứu & Dữ liệu
-
-- **Trường/viện nghiên cứu:** Trang dữ liệu công bố yêu cầu chấp nhận cookie, chọn năm/khoảng thời gian, bấm "Tải xuống" hoặc "Xem bảng". Agent thực hiện bước chuẩn bị (accept, chọn filter); bước sau dùng crawler/scraper riêng để lấy file hoặc HTML.
-- **Market research:** Cần thu thập thông tin sản phẩm từ nhiều trang cùng cấu trúc. Mỗi URL gọi một lần agent với goal "Click vào tab Thông số kỹ thuật (hoặc sản phẩm đầu tiên)" để đưa trang về trạng thái chuẩn, sau đó pipeline trích xuất dữ liệu bằng selector cố định.
-
-### Phát triển phần mềm & QA
-
-- **Regression test theo mô tả:** QA viết test case dạng "Vào trang login, điền user/pass, vào Dashboard, click nút Tạo đơn". Mỗi case = một (hoặc vài) request agent. Khi giao diện đổi (selector, copy), chỉ cần chỉnh goal hoặc chia lại URL/step, không bắt buộc sửa code test cứng.
-- **Demo cho khách hàng/PM:** Trong cuộc họp, thay vì click tay từng bước, dev gửi request với goal "Đăng nhập rồi mở màn hình Báo cáo doanh thu". Hệ thống tự thao tác trên trình duyệt, tiết kiệm thời gian và tránh sai sót khi demo.
-- **Tái tạo bug:** User báo lỗi kèm link + mô tả ("Tôi vào trang X, bấm Y thì bị lỗi"). Support tạo goal tương ứng, chạy agent trên môi trường tương tự để ghi lại các bước và kết quả (success/error), đính kèm vào ticket cho dev.
-
-### Hỗ trợ khách hàng & Trợ lý ảo
-
-- **Chatbot hỗ trợ mua hàng:** User nhắn "Mua giúp tôi sản phẩm [tên] trên link [url]". Bot parse intent → gọi agent với goal "Tìm sản phẩm [tên] (hoặc rẻ nhất) và thêm vào giỏ" → trả lời "Đã thêm vào giỏ, bạn vào link giỏ hàng để thanh toán" (kèm URL nếu có).
-- **Hướng dẫn từ xa (có ủy quyền):** Khách hàng cao tuổi hoặc không rành công nghệ; nhân viên từ xa mô tả mục tiêu ("Đăng ký tài khoản giúp tôi trên trang Z"). Hệ thống chạy agent trong session được ủy quyền, hoàn tất giúp thao tác thay vì gọi điện hướng dẫn từng bước.
-
-### Tự động hóa nội bộ (RPA nhẹ)
-
-- **Duyệt đơn / phê duyệt:** Workflow nội bộ: "Mỗi ngày mở trang quản lý đơn, click vào đơn chờ duyệt đầu tiên, bấm Duyệt." Mỗi bước (hoặc mỗi trang) gọi một lần agent; kết quả dùng để cập nhật trạng thái trong DB hoặc gửi thông báo.
-- **Nhập liệu từ file lên web:** Có file Excel/CSV danh sách khách hàng hoặc sản phẩm. Job định kỳ: với từng dòng, mở URL form nhập liệu + goal "Điền các trường theo dữ liệu dòng N và Submit". Agent thay thế phần thao tác tay lặp đi lặp lại.
-
----
-
-**Tóm lại:** Ứng dụng thực tiễn đều quy về việc **con người (hoặc hệ thống) mô tả "làm gì trên trang nào" bằng ngôn ngữ tự nhiên**, agent thực thi thay và báo lại kết quả — từ smoke test, hỗ trợ khách hàng, thu thập dữ liệu đến RPA nhẹ trong nội bộ.
-
----
-
-## Chi tiết kỹ thuật (Technical details)
-
-### 1. API duy nhất: `POST /agent/run`
-
-**Request body:**
-
-```json
-{
-  "url": "https://example.com",
-  "goal": "Buy the cheapest product on this page"
-}
+```mermaid
+flowchart LR
+  subgraph Vấn đề
+    V1[So sánh giá thủ công nhiều tab]
+    V2[Đặt tạp hóa lặp lại mỗi tuần]
+    V3[Điền form + upload hàng loạt]
+  end
+  subgraph Giải pháp
+    S1[1 request → crawl đa sàn → JSON]
+    S2[Danh sách món → agent đặt E2E]
+    S3[CSV + mapping → fill + upload → báo cáo]
+  end
+  V1 --> S1
+  V2 --> S2
+  V3 --> S3
 ```
 
-**Response (thành công hoặc dừng sớm):**
+---
 
-```json
-{
-  "success": true,
-  "message": "Goal completed.",
-  "steps_executed": 3,
-  "previous_actions": [
-    { "step": 1, "action": "click el_2", "result": "success" },
-    { "step": 2, "action": "type in el_5: \"...\"", "result": "success" },
-    { "step": 3, "action": "click el_8", "result": "success" }
-  ],
-  "final_dom_snapshot": [ ... ]
-}
+# Đặc tả dự án – Browser Agent
+
+---
+
+## Tổng quan
+
+Dự án phát triển **browser agent điều khiển bằng AI** với ba nhóm tính năng chính: so sánh giá đa sàn (multi-site crawl + structured output), đặt hàng tạp hóa online **end-to-end**, và **fill form** kèm **upload file**. Tài liệu này mô tả phạm vi và tính năng dự án (tiếng Việt, từ khóa công nghệ dùng tiếng Anh).
+
+### Sơ đồ kiến trúc tổng thể
+
+```mermaid
+flowchart LR
+  subgraph Input
+    A[User / App / Chatbot]
+  end
+  subgraph Browser Agent Core
+    B[API]
+    C[AI / LLM]
+    D[Browser]
+  end
+  subgraph External
+    E[eBay]
+    F[Amazon]
+    G[Swappa / Migros / Site bất kỳ]
+  end
+  subgraph Output
+    H[JSON / Structured output]
+  end
+  A -->|url + goal| B
+  B --> C
+  C --> D
+  D --> E
+  D --> F
+  D --> G
+  E --> D
+  F --> D
+  G --> D
+  D --> C
+  C --> B
+  B -->|structured output| H
+  H --> A
 ```
 
-- **success:** `true` nếu mục tiêu được coi là hoàn thành, `false` nếu hết bước hoặc lỗi.
-- **message:** Mô tả ngắn (ví dụ "Goal completed." hoặc thông báo lỗi).
-- **steps_executed:** Số hành động đã thực thi.
-- **previous_actions:** Từng bước: số thứ tự, mô tả hành động, kết quả (success / error: ...).
-- **final_dom_snapshot:** (tuỳ chọn) Snapshot DOM tương tác ở bước cuối.
+*Luồng: User/App gửi mục tiêu (url + goal) → API → AI quyết định hành động → Browser thao tác trên các site → thu thập dữ liệu → trả JSON cho user.*
 
 ---
 
-### 2. Luồng xử lý từng bước (Step-by-step flow)
+## Tính năng 1: So sánh giá / Tìm kiếm sản phẩm đa sàn
 
-1. **Nhận request**  
-   Controller nhận `POST /agent/run` với `url` và `goal`.
+**Mục tiêu:** Tìm kiếm thông tin sản phẩm và so sánh giá trên nhiều sàn thương mại điện tử (eBay, Amazon, Swappa).
 
-2. **Khởi tạo browser**  
-   BrowserService launch Chromium (Playwright), mở tab mới, điều hướng tới `url`.
+**Tính năng:**
 
-3. **Vòng lặp (tối đa 10 bước):**
-   - **Lấy DOM tương tác:** Chỉ lấy button, link, input, select; mỗi phần tử có `id` (el_1, el_2, ...), `tag`, `text`, `selector` ổn định.
-   - **Gọi Gemini:** Gửi goal, danh sách phần tử, lịch sử hành động (và lỗi gần nhất nếu có). Yêu cầu Gemini **chỉ trả về JSON** dạng:
-     ```json
-     { "action": "click" | "type" | "scroll" | "done", "target_id": "el_1", "value": "..." }
-     ```
-   - **Phân tích phản hồi:** Parse JSON; nếu không hợp lệ thì retry 1 lần, sau đó nếu vẫn lỗi thì trả lỗi và kết thúc run.
-   - **Nếu action = "done":** Coi là hoàn thành, thoát vòng lặp, trả về kết quả thành công.
-   - **Thực thi hành động:**
-     - **click:** Tìm phần tử theo `target_id` trong snapshot → dùng `selector` tương ứng để click.
-     - **type:** Tìm phần tử theo `target_id` → gõ nội dung `value` vào.
-     - **scroll:** Cuộn trang lên/ xuống theo `value` (up/down).
-   - **Ghi nhận kết quả:** Thêm bước vào `previous_actions` (success hoặc error). Nếu lỗi, lưu nội dung lỗi và gửi lại cho Gemini ở bước tiếp theo để nó có thể chọn hành động khác.
+- **Multi-site crawl:** Agent duyệt đồng thời hoặc tuần tự nhiều site (eBay, Amazon, Swappa) theo từ khóa / tên sản phẩm.
+- **Structured output:** Kết quả trả về **JSON**: tên sản phẩm, giá, link, nguồn sàn, có thể thêm điều kiện (mới/cũ, khu vực).
+- **So sánh giá:** Tổng hợp kết quả từ các sàn thành một bảng/báo cáo so sánh (rẻ nhất, theo sàn, theo điều kiện).
+- **Mở rộng:** Có thể thêm sàn khác (Shopee, Lazada, Tiki, v.v.) theo cùng mô hình; dễ scale thêm **source** mới.
 
-4. **Kết thúc**  
-   Đóng browser (luôn, kể cả khi lỗi). Trả về `AgentRunResult` (success, message, steps_executed, previous_actions, có thể kèm final_dom_snapshot).
+**Đối tượng sử dụng:** Người mua muốn tìm giá tốt; công cụ so sánh giá; tích hợp vào app / chatbot mua sắm.
 
----
+### Sơ đồ flow: So sánh giá đa sàn
 
-### 3. Các thành phần chính (Components)
-
-| Thành phần | File | Nhiệm vụ |
-|------------|------|----------|
-| **AgentController** | `src/agent/agent.controller.ts` | Nhận `POST /agent/run`, gọi AgentService, trả JSON. |
-| **AgentService** | `src/agent/agent.service.ts` | Điều phối: mở URL, vòng lặp (DOM → Gemini → thực thi), ghi log, đóng browser, trả kết quả. |
-| **BrowserService** | `src/browser/browser.service.ts` | Launch/đóng Chromium, mở URL, trích xuất DOM tương tác, thực hiện click/type/scroll. |
-| **AIService** | `src/ai/ai.service.ts` | Kết nối Gemini, build prompt, gửi request, parse và validate JSON phản hồi. |
-| **Interfaces / DTO** | `src/agent/interfaces.ts`, `dto/run-agent.dto.ts` | Định nghĩa kiểu: DomElement, GeminiActionResponse, AgentRunResult, RunAgentDto. |
-
----
-
-### 4. DOM tương tác (Interactive DOM)
-
-Chỉ lấy các phần tử có thể tương tác:
-
-- **button**, **a[href]**, **input** (trừ hidden), **select**
-- Có thể mở rộng: `[role="button"]`, `[role="link"]`, `[onclick]`
-
-Mỗi phần tử trả về có dạng:
-
-```json
-{
-  "id": "el_1",
-  "tag": "button",
-  "text": "Buy Now",
-  "selector": "#buy-btn"
-}
+```mermaid
+flowchart TB
+  Start([Request: keyword + danh sách sàn]) --> Crawl
+  subgraph Crawl
+    C1[Agent mở eBay, search]
+    C2[Agent mở Amazon, search]
+    C3[Agent mở Swappa, search]
+  end
+  Crawl --> Extract[Trích xuất: tên, giá, link]
+  Extract --> Aggregate[Tổng hợp bảng so sánh]
+  Aggregate --> JSON[JSON structured output]
+  JSON --> End([App / User nhận kết quả])
 ```
 
-**Selector ổn định (ưu tiên):**  
-`id` → `data-testid` → `input[name="..."]` → nếu không có thì gán `data-agent-id` tạm trên phần tử và dùng `[data-agent-id="..."]`.
+---
+
+## Tính năng 2: Đặt hàng tạp hóa online end-to-end (Shopping)
+
+**Mục tiêu:** Tự động đặt hàng tạp hóa online từ đầu đến cuối trên các site bán tạp hóa (ví dụ: Migros hoặc sàn tương tự).
+
+**Tính năng:**
+
+- **Multi-site crawl / chuẩn bị:** Hỗ trợ điều hướng nhiều trang (danh mục, search, filter) để tìm sản phẩm cần mua.
+- **Structured output:** Trích xuất danh sách sản phẩm, giá, số lượng, tổng tiền theo format **JSON** để tích hợp với bước đặt hàng hoặc **workflow**.
+- **Flow đặt hàng end-to-end:** Từ danh sách mua (cart) → thêm vào giỏ trên web → fill thông tin shipping/payment (nếu có trong phạm vi) → xác nhận đơn (theo chính sách từng site).
+- **Tích hợp với so sánh:** Có thể kết hợp với Tính năng 1 (so sánh giá tạp hóa giữa các sàn) rồi chọn sàn và thực hiện đặt hàng.
+
+**Đối tượng sử dụng:** Cá nhân đặt hàng tạp hóa định kỳ; dịch vụ đặt hàng hộ; demo **automation** cho retail.
+
+### Sơ đồ flow: Đặt hàng tạp hóa end-to-end
+
+```mermaid
+flowchart TB
+  Start([Danh sách món cần mua]) --> Nav[Điều hướng site: danh mục / search / filter]
+  Nav --> Add[Thêm từng món vào giỏ]
+  Add --> Cart[Giỏ hàng đầy đủ]
+  Cart --> Fill[Fill shipping + payment]
+  Fill --> Confirm[Xác nhận đơn]
+  Confirm --> Out[JSON: trạng thái đơn, tổng tiền]
+  Out --> End([User kiểm tra / thanh toán])
+```
 
 ---
 
-### 5. Gemini – yêu cầu format
+## Tính năng 3: Điền form và upload file
 
-- **Model:** `gemini-1.5-pro-latest`.
-- **System instruction:** Bắt buộc chỉ trả về **một JSON hợp lệ**, không markdown, không giải thích thêm.
-- **Prompt:** Goal + danh sách phần tử (id, tag, text, selector) + lịch sử hành động + (nếu có) lỗi lần trước.
-- **Format trả về:**  
-  `{ "action": "click" | "type" | "scroll" | "done", "target_id": "el_X" | "", "value": "..." (khi cần) }`
+**Mục tiêu:** Tự động **fill form** trên web và **upload file** theo dữ liệu cho trước.
 
----
+**Tính năng:**
 
-### 6. Xử lý lỗi (Error handling)
+- **Fill form:** Nhận dữ liệu (**JSON** / key-value hoặc mapping field) và điền vào các ô **input**, **textarea**, **select**, **checkbox**, **radio** trên trang; hỗ trợ form nhiều bước (**wizard**).
+- **Upload file:** Chọn file từ đường dẫn hoặc nguồn được cung cấp và thực hiện upload vào **input** `type="file"` (hoặc drag-and-drop nếu UI hỗ trợ).
+- **Kết hợp:** Một **request** có thể vừa fill form vừa upload file (vd: form đăng ký + đính kèm CV).
+- **Structured output:** Trả về trạng thái (success/error), các bước đã thực hiện, thông báo lỗi từ trang (nếu bắt được) để tích hợp vào **workflow**.
 
-- **Mở URL / extract DOM lỗi:** Trả về `success: false`, message mô tả lỗi, đóng browser.
-- **Gemini trả JSON không hợp lệ:** Retry 1 lần; vẫn lỗi thì trả về lỗi và kết thúc run.
-- **Thực thi hành động lỗi (vd: element không tìm thấy):** Ghi vào `previous_actions` với result là error, gửi nội dung lỗi vào prompt bước sau để Gemini đổi hành động; không thoát vòng lặp ngay (trừ khi vượt max steps).
+**Đối tượng sử dụng:** Tự động đăng ký dịch vụ, nộp đơn, gửi feedback có đính kèm; **RPA** nhẹ; tích hợp với quy trình nội bộ.
 
----
+### Sơ đồ flow: Fill form + upload file
 
-### 7. Công nghệ và môi trường
-
-- **NestJS** – framework API, dependency injection.
-- **Playwright** – điều khiển Chromium headless.
-- **@google/generative-ai** – gọi Gemini.
-- **TypeScript** – type-safe, async/await.
-- **dotenv** – đọc `GEMINI_API_KEY` từ file `.env`.
-
-Biến môi trường cần có: **GEMINI_API_KEY**.  
-Chạy: `npm install` → `npx playwright install chromium` → cấu hình `.env` → `npm run start`.
+```mermaid
+flowchart TB
+  Start([Input: JSON data + file đính kèm]) --> Map[Mapping field → ô trên form]
+  Map --> Fill[Điền input / textarea / select / checkbox]
+  Fill --> Upload[Upload file vào input type=file]
+  Upload --> Submit[Submit form]
+  Submit --> Result[Structured output: success / error, bước đã thực hiện]
+  Result --> End([Workflow / App tiếp tục xử lý])
+```
 
 ---
 
-## Tóm tắt một câu
+## Tóm tắt phạm vi dự án
 
-**Dự án là một dịch vụ API (NestJS) dùng Playwright để điều khiển trình duyệt và Gemini để "suy nghĩ" bước tiếp theo, nhằm thực hiện tự động một mục tiêu trên một trang web (mở trang → trích DOM tương tác → hỏi Gemini → thực thi click/type/scroll → lặp tối đa 10 bước → trả kết quả).**
+| Nhóm tính năng | Mô tả ngắn |
+|----------------|------------|
+| **So sánh giá đa sàn** | **Multi-site crawl** (eBay, Amazon, Swappa, mở rộng); **structured output** (JSON) để so sánh giá. |
+| **Đặt hàng tạp hóa** | **Crawl** / điều hướng site tạp hóa (vd Migros), **structured output** giỏ hàng, flow đặt hàng **end-to-end**. |
+| **Điền form & upload file** | **Fill form** theo dữ liệu cho trước + **upload file**; **structured output** để báo kết quả, tích hợp **workflow**. |
+
+Dự án phát triển lại theo ba hướng trên; tài liệu kỹ thuật chi tiết (**API**, **flow**, **stack**) sẽ được bổ sung trong các tài liệu riêng.
+
+### Sơ đồ ba nhóm tính năng (phạm vi)
+
+```mermaid
+flowchart LR
+  subgraph Browser Agent Core
+    direction TB
+    F1[So sánh giá đa sàn]
+    F2[Đặt hàng tạp hóa E2E]
+    F3[Fill form + Upload file]
+  end
+  F1 --> JSON1[JSON: bảng giá, link]
+  F2 --> JSON2[JSON: cart, đơn hàng]
+  F3 --> JSON3[JSON: success/error]
+  JSON1 --> App[App / Workflow / Chatbot]
+  JSON2 --> App
+  JSON3 --> App
+```
+
+---
+
+## Ưu nhược điểm của dự án
+
+### Ưu điểm
+
+- **Một nền tảng, nhiều use case:** Cùng một **browser agent** + AI có thể phục vụ so sánh giá, đặt hàng tạp hóa, fill form & upload file; giảm chi phí phát triển và vận hành so với nhiều tool rời rạc.
+- **Mô tả bằng ngôn ngữ tự nhiên:** Người dùng (hoặc hệ thống gọi **API**) chỉ cần mô tả mục tiêu, không cần viết **script** hay **selector** cố định; dễ thay đổi flow khi thêm sàn hoặc thay đổi quy trình.
+- **Structured output dễ tích hợp:** Kết quả trả về **JSON** chuẩn, dễ đưa vào **workflow**, **dashboard**, **chatbot** hoặc **downstream** xử lý tiếp.
+- **Dễ mở rộng nguồn:** Thêm sàn mới (eBay, Amazon, Swappa, Shopee, Migros, …) chủ yếu qua cấu hình và prompt, không phụ thuộc hoàn toàn vào **layout** từng site — AI thích ứng với **UI** khác nhau trong giới hạn.
+- **Giảm RPA cứng:** So với **RPA** truyền thống (record/playback, selector cố định), agent linh hoạt hơn khi trang đổi **UI**, ít phải maintain **script** khi site update.
+
+### Nhược điểm
+
+- **Phụ thuộc AI và chi phí token:** Chất lượng phụ thuộc model (GPT, Gemini, …); mỗi bước đều gọi **LLM** → tốn **token**, chi phí vận hành tăng khi **scale** số request hoặc số bước mỗi task.
+- **Độ ổn định theo từng site:** Mỗi sàn có **layout**, **anti-bot**, **CAPTCHA** khác nhau; agent có thể thất bại hoặc cần **retry** / xử lý đặc thù (cookie consent, login, 2FA).
+- **Giới hạn pháp lý và điều khoản:** Crawl và tự động đặt hàng / điền form phải tuân thủ **ToS** của từng site và quy định pháp luật; một số sàn cấm **scraping** hoặc **automation**.
+- **Độ trễ và tài nguyên:** Mỗi task có thể mất nhiều bước (crawl → click → fill → submit), thời gian phản hồi dài hơn **API** tĩnh; chạy **browser** tốn RAM/CPU, **scale** ngang cần quản lý **concurrency** và **timeout**.
+- **Cần monitoring và fallback:** Khi AI chọn sai **element** hoặc trang thay đổi, cần **logging**, **alert** và quy trình xử lý lỗi (retry, human-in-the-loop) để đảm bảo độ tin cậy.
+
+---
+
+## Các hướng kiếm tiền từ dự án
+
+### 1. SaaS / API trả phí theo usage
+
+- Bán **API** (so sánh giá, đặt hàng, fill form) theo **request** hoặc **token**: gói free (vài trăm request/tháng), gói Pro/Team (giới hạn cao hơn, **rate limit** cao), gói Enterprise (SLA, **dedicated**).
+- Thu phí theo **usage** (số lần gọi **endpoint**, số bước mỗi task, số site crawl) — phù hợp startup, developer, team nhỏ cần tích hợp nhanh mà không tự host.
+
+### 2. Affiliate & hoa hồng chuyển đổi
+
+- **So sánh giá:** Khi user click qua sàn mua hàng từ kết quả so sánh, nhận **affiliate** từ sàn (Amazon Associates, eBay Partner Network, …). Doanh thu = % hoa hồng trên đơn.
+- **Đặt hàng tạp hóa:** Hợp tác sàn tạp hóa (Migros, các siêu thị online) — nhận **commission** khi đơn hàng được tạo qua **flow** của mình (deep link, **tracking**).
+- Có thể kết hợp: app/website so sánh giá hoặc "đặt hộ" miễn phí cho user, kiếm tiền từ **affiliate** thay vì thu phí trực tiếp.
+
+### 3. Subscription theo đối tượng
+
+- **Cá nhân:** Gói hàng tháng/năm — "X lần so sánh giá + Y đơn tạp hóa + Z form" mỗi tháng; phù hợp người đặt hàng định kỳ, người tìm giá rẻ.
+- **Doanh nghiệp / team:** Gói theo seat hoặc theo **workflow**: RPA nhẹ (fill form, upload file hàng loạt), tích hợp **CRM** / **ERP**; giá cao hơn, đi kèm **support**, **onboarding**.
+- **Agency / reseller:** Gói **white-label** hoặc **API** volume để họ bán lại cho khách (công cụ so sánh giá, dịch vụ đặt hàng hộ, automation form).
+
+### 4. B2B & tích hợp theo dự án
+
+- Bán **license** hoặc **custom integration** cho công ty retail, logistics, hỗ trợ khách hàng: so sánh giá nội bộ, đặt hàng tạp hóa cho nhân viên/công ty, tự động nộp đơn/điền form theo batch.
+- Thu phí **one-time** (triển khai, training) + **recurring** (maintain, thêm sàn, thêm **use case**); có thể **revenue share** nếu khách dùng để bán dịch vụ cho end-user.
+
+### 5. Data & báo cáo (nếu tuân thủ pháp luật & ToS)
+
+- **Aggregate** dữ liệu giá (không chi tiết cá nhân) từ **crawl** so sánh → bán **report**, **trend** giá theo ngành/ngành hàng cho doanh nghiệp, **market research**.
+- Chỉ áp dụng khi **ToS** và luật cho phép; có thể **anonymize**, chỉ bán insight tổng hợp.
+
+### 6. White-label & hợp tác nền tảng
+
+- Cung cấp **white-label** cho app mua sắm, **super app**, **banking** (tích hợp "so sánh giá" hoặc "đặt hàng tạp hóa" trong app của họ); thu phí **license** hoặc % doanh thu tính năng đó.
+- Hợp tác với **marketplace**, **price comparison** hiện có: họ dùng **API** của mình để bổ sung sàn/source, mình thu phí **API** hoặc **revenue share**.
+
+---
+
+**Tóm tắt:** Có thể kết hợp nhiều kênh — **SaaS/API** + **affiliate** + **subscription** + **B2B** — tùy giai đoạn và đối tượng (B2C vs B2B). Ưu tiên **product-led** (dùng thử so sánh giá / fill form miễn phí) để tạo **funnel**, sau đó upsell gói trả phí hoặc **enterprise**.
+
+### Sơ đồ luồng kiếm tiền
+
+```mermaid
+flowchart LR
+  subgraph Nguồn thu
+    R1[SaaS / API]
+    R2[Affiliate / Commission]
+    R3[Subscription]
+    R4[B2B / White-label]
+  end
+  subgraph Đối tượng
+    C1[Developer / App]
+    C2[User mua qua link]
+    C3[Cá nhân / Team]
+    C4[Enterprise / Agency]
+  end
+  C1 --> R1
+  C2 --> R2
+  C3 --> R3
+  C4 --> R4
+  R1 --> Revenue[Doanh thu]
+  R2 --> Revenue
+  R3 --> Revenue
+  R4 --> Revenue
+```
+
+---
+
+## Đối tượng khách hàng (persona) — cho thuyết trình
+
+| Persona | Nhu cầu chính | Sản phẩm đáp ứng |
+|--------|----------------|-------------------|
+| **Người mua cá nhân** | Tìm giá rẻ, đặt tạp hóa định kỳ, không muốn mở từng sàn | So sánh giá 1 lần; đặt hàng từ danh sách; subscription cá nhân |
+| **Developer / startup** | Tích hợp so sánh giá hoặc automation vào app, không muốn tự crawl/maintain | API theo request; structured output; gói Pro/Team |
+| **Doanh nghiệp (retail, support, ops)** | So sánh giá nội bộ, đặt hàng hộ, fill form hàng loạt | B2B license; workflow integration; RPA nhẹ |
+| **Agency / reseller** | Bán lại công cụ so sánh giá hoặc dịch vụ đặt hộ cho khách | White-label; API volume; affiliate |
+
+*Dùng để trả lời "Ai mua?" và "Họ trả tiền cho cái gì?".*
+
+### Sơ đồ persona → sản phẩm
+
+```mermaid
+flowchart TB
+  subgraph Persona
+    P1[Người mua cá nhân]
+    P2[Developer / Startup]
+    P3[Doanh nghiệp]
+    P4[Agency / Reseller]
+  end
+  subgraph Sản phẩm
+    S1[So sánh giá + Subscription]
+    S2[API Pro/Team]
+    S3[B2B license / Workflow]
+    S4[White-label / Affiliate]
+  end
+  P1 --> S1
+  P2 --> S2
+  P3 --> S3
+  P4 --> S4
+```
+
+---
+
+## Kịch bản demo / use case ngắn — cho thuyết trình
+
+1. **So sánh giá:** "Anh A cần mua iPhone cũ, mở eBay + Amazon + Swappa rất mệt → gửi 1 request: keyword + 3 sàn → nhận JSON bảng giá + link, click qua mua, mình nhận affiliate."
+2. **Đặt hàng tạp hóa:** "Chị B mỗi tuần đặt tạp hóa trên Migros, lặp lại 30 phút → gửi danh sách món → agent thêm giỏ, điền địa chỉ, xác nhận đơn → chị chỉ kiểm tra và thanh toán."
+3. **Fill form:** "Công ty C nộp 50 đơn dự tuyển, mỗi đơn 20 ô giống nhau → upload CSV + mapping → agent điền từng form + đính kèm file, trả báo cáo success/error."
+
+*Dùng để kể chuyện cụ thể khi trình bày.*
+
+---
+
+## So với đối thủ / competitive landscape
+
+| So với | Điểm khác của Browser Agent Core |
+|--------|-----------------------------------|
+| **Công cụ so sánh giá truyền thống** (Google Shopping, trang so sánh cố định) | Ít sàn, ít khi cho **API/JSON**; mình crawl đa sàn, **structured output**, dễ thêm source mới. |
+| **RPA truyền thống** (UiPath, Automation Anywhere, script Selenium) | **Selector** cố định, UI đổi là gãy; mình dùng AI + ngôn ngữ tự nhiên, linh hoạt hơn, ít maintain. |
+| **Browser automation + AI** (browser-use, Bolt.new, …) | Nhiều tool open-source / generic; mình tập trung 3 use case (so sánh giá, đặt tạp hóa, form+file) và **structured output** sẵn để tích hợp **workflow** / kiếm tiền (affiliate, SaaS). |
+
+*Dùng để trả lời "Khác gì các giải pháp có sẵn?".*
+
+---
+
+## Roadmap / lộ trình (gợi ý cho thuyết trình)
+
+- **Phase 1 (MVP):** So sánh giá 1–2 sàn (vd eBay, Amazon); **API** trả JSON; landing + gói free/Pro.
+- **Phase 2:** Thêm sàn (Swappa, Shopee, …); flow đặt hàng tạp hóa end-to-end (1 site); fill form + upload file; affiliate + subscription.
+- **Phase 3:** Đa sàn tạp hóa; B2B / white-label; **monitoring**, **retry**, **SLA**; data/report (nếu tuân ToS).
+
+*Giúp người nghe hình dung bước đi và ưu tiên.*
+
+### Sơ đồ roadmap (timeline)
+
+```mermaid
+gantt
+  title Lộ trình phát triển
+  dateFormat YYYY-MM
+  section Phase 1 MVP
+  So sánh giá 1-2 sàn + API JSON   :p1a, 2025-01, 3M
+  Landing + Free/Pro               :p1b, after p1a, 1M
+  section Phase 2
+  Thêm sàn, đặt tạp hóa E2E       :p2a, after p1b, 3M
+  Fill form + upload, affiliate    :p2b, after p2a, 2M
+  section Phase 3
+  B2B / white-label / SLA          :p3, after p2b, 4M
+```
+
+*Có thể chỉnh lại mốc thời gian theo thực tế.*
+
+---
+
+## Call to action — sau khi thuyết trình
+
+- **Investor / đối tác:** Xin feedback về **positioning** và roadmap; mời thử **API** hoặc bản demo.
+- **Khách hàng tiềm năng:** Đăng ký **beta** / dùng thử so sánh giá hoặc fill form miễn phí; liên hệ nếu cần **enterprise** hoặc **white-label**.
+- **Developer:** Thử **API**, đọc docs; contribute hoặc tích hợp vào **workflow** của mình.
+
+*Kết thúc slide bằng 1 CTA rõ ràng (link đăng ký, email, form liên hệ).*
