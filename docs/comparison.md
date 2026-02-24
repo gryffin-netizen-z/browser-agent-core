@@ -1,10 +1,10 @@
-# DELIVERABLE 1: COMPETITIVE LANDSCAPE — Web3 Skill / Agent Marketplace (25%)
+# DELIVERABLE 1: COMPETITIVE LANDSCAPE — Web3 Skill / Agent Marketplace
 
 Phân tích **Web3 skill marketplace / plugin store / agent marketplace** trên thị trường, **so sánh với dự án ClawFriend** (theo **CLAWFRIEND_SPEC.md** — spec đầy đủ tại docs.clawfriend.ai / file spec ClawFriend). Tìm ít nhất 5–10 đối thủ trực tiếp; mỗi đối thủ có tên, link, mô tả, số liệu, monetization, điểm mạnh/yếu; phân tích tổng thể và kết luận định vị **ClawFriend**.
 
 ---
 
-## Dự án so sánh: ClawFriend (theo CLAWFRIEND_SPEC)
+## Dự án so sánh: ClawFriend
 
 | Thuộc tính | Mô tả |
 |------------|--------|
@@ -21,20 +21,7 @@ Toàn bộ phân tích dưới đây so sánh **đối thủ với ClawFriend**;
 
 ---
 
-## Barem chấm điểm (25 điểm)
-
-**Nguyên tắc:** Số lượng đối thủ KHÔNG bằng chất lượng phân tích. Phân tích sâu 5 đối thủ với data thực, insight chiến lược và so sánh có chiều sâu được đánh giá cao hơn liệt kê 10 đối thủ mô tả copy-paste.
-
-| Tiêu chí | Điểm | Yêu cầu đạt điểm |
-|----------|------|-------------------|
-| Chất lượng phân tích đối thủ | 10 | Mỗi đối thủ có nhận xét RIÊNG: làm gì tốt/dở; tại sao user chọn/không chọn; học được gì. Copy từ website = 0. |
-| Số liệu & Data thực | 6 | Mỗi đối thủ ÍT NHẤT 2 số liệu (user, download, stars, on-chain tx, pricing, GMV, funding); có nguồn. |
-| So sánh & Insight chiến lược | 5 | Đối thủ focus chain nào? Pricing model? Gap thị trường chưa ai lấp? Giai đoạn thị trường (nascent/growing/mature). |
-| Kết luận & Định vị marketplace | 4 | Marketplace mình khác ở đâu? Đánh segment nào đối thủ bỏ ngỏ? Lợi thế cạnh tranh cụ thể? Thắng/thua ở điểm nào? |
-
----
-
-## 1. Danh sách đối thủ (5–10 đối thủ trực tiếp)
+## 1. Danh sách đối thủ 
 
 *Bảng dưới gồm **ClawFriend (dự án mình)** và các đối thủ; mọi so sánh trong doc là so với ClawFriend.*
 
@@ -53,9 +40,7 @@ Toàn bộ phân tích dưới đây so sánh **đối thủ với ClawFriend**;
 
 ---
 
-## 2. Số liệu & Nguồn (đáp ứng 6 điểm)
-
-Mỗi đối thủ có ít nhất 2 số liệu thực, nguồn công khai:
+## 2. Số liệu & Nguồn
 
 | Đối thủ | Số liệu 1 | Nguồn | Số liệu 2 | Nguồn |
 |---------|-----------|--------|-----------|--------|
@@ -72,9 +57,9 @@ Mỗi đối thủ có ít nhất 2 số liệu thực, nguồn công khai:
 
 ---
 
-## 3. Chất lượng phân tích đối thủ — 5 đối thủ chính (10 điểm)
+## 3. Phân tích đối thủ
 
-Mỗi đối thủ: **làm gì tốt / dở**, **tại sao user chọn hoặc không chọn**, **ClawFriend (dự án mình) học được gì từ họ**. Cuối cùng: **ClawFriend định vị thế nào** (từ CLAWFRIEND_SPEC).
+Mỗi đối thủ: **làm gì tốt / dở**, **tại sao user chọn hoặc không chọn**, **ClawFriend (dự án mình) học được gì từ họ**. Cuối cùng: **ClawFriend định vị thế nào**
 
 ### 3.A — ClawHub
 
@@ -112,7 +97,7 @@ Mỗi đối thủ: **làm gì tốt / dở**, **tại sao user chọn hoặc kh
 
 ---
 
-## 4. So sánh & Insight chiến lược (5 điểm)
+## 4. So sánh & Insight chiến lược
 
 ### 4.1 Focus chain & pricing model
 
@@ -146,9 +131,7 @@ Mỗi đối thủ: **làm gì tốt / dở**, **tại sao user chọn hoặc kh
 
 ---
 
-## 5. Kết luận & Định vị ClawFriend (4 điểm)
-
-*Toàn bộ so sánh với dự án **ClawFriend** theo CLAWFRIEND_SPEC (docs.clawfriend.ai).*
+## 5. Kết luận & Định vị ClawFriend 
 
 ### 5.1 ClawFriend khác đối thủ ở đâu?
 
@@ -187,7 +170,7 @@ Mỗi đối thủ: **làm gì tốt / dở**, **tại sao user chọn hoặc kh
 
 ---
 
-## 6. Tóm tắt đạt barem (25 điểm)
+## 6. Tóm tắt
 
 | Tiêu chí | Điểm | Đáp ứng trong doc |
 |----------|------|-------------------|
