@@ -2,8 +2,6 @@
 
 **Browser Agent Core** — API + browser agent điều khiển bằng AI: so sánh giá đa sàn, đặt hàng tạp hóa end-to-end, fill form + upload file. Mô tả mục tiêu bằng ngôn ngữ tự nhiên (hoặc danh sách cần làm), hệ thống tự thực hiện và trả **structured output** (JSON) — không cần viết script hay maintain selector khi site đổi.
 
-*Dùng cho slide mở đầu / one-liner khi giới thiệu.*
-
 ---
 
 ## Tại sao lại có ý tưởng này
@@ -83,8 +81,6 @@ flowchart LR
   B -->|structured output| H
   H --> A
 ```
-
-*Luồng: User/App gửi mục tiêu (url + goal) → API → AI quyết định hành động → Browser thao tác trên các site → thu thập dữ liệu → trả JSON cho user.*
 
 ---
 
@@ -299,8 +295,6 @@ flowchart LR
 | **Doanh nghiệp (retail, support, ops)** | So sánh giá nội bộ, đặt hàng hộ, fill form hàng loạt | B2B license; workflow integration; RPA nhẹ |
 | **Agency / reseller** | Bán lại công cụ so sánh giá hoặc dịch vụ đặt hộ cho khách | White-label; API volume; affiliate |
 
-*Dùng để trả lời "Ai mua?" và "Họ trả tiền cho cái gì?".*
-
 ### Sơ đồ persona → sản phẩm
 
 ```mermaid
@@ -331,8 +325,6 @@ flowchart TB
 2. **Đặt hàng tạp hóa:** "Chị B mỗi tuần đặt tạp hóa trên Migros, lặp lại 30 phút → gửi danh sách món → agent thêm giỏ, điền địa chỉ, xác nhận đơn → chị chỉ kiểm tra và thanh toán."
 3. **Fill form:** "Công ty C nộp 50 đơn dự tuyển, mỗi đơn 20 ô giống nhau → upload CSV + mapping → agent điền từng form + đính kèm file, trả báo cáo success/error."
 
-*Dùng để kể chuyện cụ thể khi trình bày.*
-
 ---
 
 ## So với đối thủ / competitive landscape
@@ -343,8 +335,6 @@ flowchart TB
 | **RPA truyền thống** (UiPath, Automation Anywhere, script Selenium) | **Selector** cố định, UI đổi là gãy; mình dùng AI + ngôn ngữ tự nhiên, linh hoạt hơn, ít maintain. |
 | **Browser automation + AI** (browser-use, Bolt.new, …) | Nhiều tool open-source / generic; mình tập trung 3 use case (so sánh giá, đặt tạp hóa, form+file) và **structured output** sẵn để tích hợp **workflow** / kiếm tiền (affiliate, SaaS). |
 
-*Dùng để trả lời "Khác gì các giải pháp có sẵn?".*
-
 ---
 
 ## Roadmap / lộ trình (gợi ý cho thuyết trình)
@@ -352,8 +342,6 @@ flowchart TB
 - **Phase 1 (MVP):** So sánh giá 1–2 sàn (vd eBay, Amazon); **API** trả JSON; landing + gói free/Pro.
 - **Phase 2:** Thêm sàn (Swappa, Shopee, …); flow đặt hàng tạp hóa end-to-end (1 site); fill form + upload file; affiliate + subscription.
 - **Phase 3:** Đa sàn tạp hóa; B2B / white-label; **monitoring**, **retry**, **SLA**; data/report (nếu tuân ToS).
-
-*Giúp người nghe hình dung bước đi và ưu tiên.*
 
 ### Sơ đồ roadmap (timeline)
 
@@ -371,8 +359,6 @@ gantt
   B2B / white-label / SLA          :p3, after p2b, 4M
 ```
 
-*Có thể chỉnh lại mốc thời gian theo thực tế.*
-
 ---
 
 ## Call to action — sau khi thuyết trình
@@ -381,4 +367,3 @@ gantt
 - **Khách hàng tiềm năng:** Đăng ký **beta** / dùng thử so sánh giá hoặc fill form miễn phí; liên hệ nếu cần **enterprise** hoặc **white-label**.
 - **Developer:** Thử **API**, đọc docs; contribute hoặc tích hợp vào **workflow** của mình.
 
-*Kết thúc slide bằng 1 CTA rõ ràng (link đăng ký, email, form liên hệ).*
